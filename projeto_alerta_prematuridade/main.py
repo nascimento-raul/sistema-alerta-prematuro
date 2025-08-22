@@ -190,7 +190,7 @@ def dashboard():
             window.timelineChart = new Chart(ctx, {
                 type: 'line',
                 data: { labels, datasets: [{ label: 'Alertas', data: dataPts, fill: false, borderColor: '#ffd700' }] },
-                options: { scales: { x: { display: false } } }
+                options: {{ scales: {{ x: {{ display: false }} }} }}
             });
         }}
         window.onload = carregarAlertas;
