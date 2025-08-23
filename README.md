@@ -39,7 +39,7 @@ git push origin main
 
 ## 2. Como Usar a Swagger UI
 
-1. No navegador, abra: https://<SEU-RAILWAY-URL>/docs
+1. No navegador, abra: https://sistema-alerta-prematuro-production.up.railway.app/docs
 2. Encontre o endpoint **GET /api/alerts** e clique para expandir.
 3. Preencha os filtros:
 - `periodo`: `24h` | `7dias` | `mes` | `ano`
