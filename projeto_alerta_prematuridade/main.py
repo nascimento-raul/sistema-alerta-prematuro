@@ -79,7 +79,10 @@ def calcular_urgencia(semanas: int) -> tuple:
 
 @app.get("/", response_class=JSONResponse)
 def home():
-    alertas_hoje = len([a for a in alertas_historico if a["timestamp"].startswith(date.today().isoformat())])
+    alertas_hoje = len([
+        a for a in alertas_historico 
+        if a["timestamp"].startswith(date.today().isoformat())
+    ])
     return {
         "sistema": "Sistema de Alerta Prematuro (SAP)",
         "status": "online",
@@ -94,111 +97,8 @@ def home():
 
 @app.get("/dashboard", response_class=HTMLResponse)
 def dashboard():
-    html_content = f"""
-<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-    <meta charset="UTF-8">
-    <title>SAP Dashboard - Sistema de Alerta Prematuro</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <style>
-        * {{margin:0;padding:0;box-sizing:border-box;}}
-        body {{font-family:Arial,sans-serif;background:#667eea;color:#333;}}
-        .container {{max-width:1200px;margin:0 auto;padding:20px;}}
-        .header {{text-align:center;color:white;margin-bottom:20px;}}
-        .header h1 {{font-size:2.5em;}}
-        .status-online {{display:inline-block;width:10px;height:10px;border-radius:50%;background:#2ecc71;animation:pulse 2s infinite;margin-right:5px;}}
-        @keyframes pulse {{0%{{opacity:1}}50%{{opacity:0.5}}100%{{opacity:1}}}}
-        .stats-grid {{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;margin-bottom:20px;}}
-        .stat-card {{background:rgba(255,255,255,0.2);padding:15px;border-radius:8px;text-align:center;color:white;}}
-        .stat-number {{font-size:2em;font-weight:bold;color:#ffd700;}}
-        select {{padding:5px;margin:10px;}}
-        canvas {{background:white;border-radius:8px;}}
-    </style>
-</head>
-<body>
-    <div class="container">
-        <div class="header">
-            <span class="status-online"></span>
-            <h1>🚀 SAP Dashboard</h1>
-            <p>Sistema de Alerta Prematuro – Monitoramento em Tempo Real</p>
-        </div>
-
-        <div class="stats-grid">
-            <div class="stat-card"><div class="stat-number" id="total-geral">0</div>Total Geral</div>
-            <div class="stat-card"><div class="stat-number" id="total-mes">0</div>Total Mês</div>
-            <div class="stat-card"><div class="stat-number" id="total-ano">0</div>Total Ano</div>
-            <div class="stat-card"><div class="stat-number" id="total-7dias">0</div>Últimos 7 dias</div>
-            <div class="stat-card"><div class="stat-number" id="total-24h">0</div>Últimas 24h</div>
-        </div>
-
-        <div style="text-align:center;margin-bottom:20px;">
-            <label>Período:
-                <select id="periodo" onchange="atualizarDashboard()">
-                    <option value="geral">Geral</option>
-                    <option value="mes">Mês</option>
-                    <option value="ano">Ano</option>
-                    <option value="7dias">7 dias</option>
-                    <option value="24h">24h</option>
-                </select>
-            </label>
-        </div>
-
-        <canvas id="timelineChart" width="400" height="150"></canvas>
-
-        <div style="margin-top:20px;color:white;text-align:center;">
-            <h3>🌟 ONG Prematuridade.com</h3>
-            <p>Parceiro Estratégico – Maior Rede de Apoio a Prematuros do Brasil</p>
-            <p><strong>Famílias/mês:</strong> 600 • <strong>Estados:</strong> 23 • <strong>Anos:</strong> 15 • <strong>Satisfação:</strong> 97%</p>
-        </div>
-        <div style="text-align:center;color:white;margin-top:20px;font-size:0.9em;">
-            Última atualização: {datetime.now().strftime('%d/%m/%Y %H:%M:%S')} | SAP v1.0.1
-        </div>
-    </div>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script>
-        let dadosAlertas = [];
-        async function carregarAlertas() {{
-            const res = await fetch('/api/alerts');
-            const json = await res.json();
-            dadosAlertas = json.alertas || [];
-            atualizarDashboard();
-        }}
-        function contarPorPeriodo(p) {{
-            const agora = new Date();
-            return dadosAlertas.filter(a => {{
-                const ts = new Date(a.timestamp);
-                if(p==='24h') return agora-ts<=24*60*60*1000;
-                if(p==='7dias') return agora-ts<=7*24*60*60*1000;
-                if(p==='mes') return ts.getMonth()===agora.getMonth()&&ts.getFullYear()===agora.getFullYear();
-                if(p==='ano') return ts.getFullYear()===agora.getFullYear();
-                return true;
-            }});
-        }}
-        function atualizarDashboard() {{
-            document.getElementById('total-geral').innerText = dadosAlertas.length;
-            document.getElementById('total-mes').innerText = contarPorPeriodo('mes').length;
-            document.getElementById('total-ano').innerText = contarPorPeriodo('ano').length;
-            document.getElementById('total-7dias').innerText = contarPorPeriodo('7dias').length;
-            document.getElementById('total-24h').innerText = contarPorPeriodo('24h').length;
-            const p = document.getElementById('periodo').value;
-            const filtrados = contarPorPeriodo(p);
-            const labels = filtrados.map(a=>new Date(a.timestamp).toLocaleTimeString());
-            const dataPts = filtrados.map(_=>1);
-            const ctx = document.getElementById('timelineChart').getContext('2d');
-            if(window.timelineChart) window.timelineChart.destroy();
-            window.timelineChart = new Chart(ctx, {
-                type: 'line',
-                data: { labels, datasets: [{ label: 'Alertas', data: dataPts, fill: false, borderColor: '#ffd700' }] },
-                options: {{ scales: {{ x: {{ display: false }} }} }}
-            });
-        }}
-        window.onload = carregarAlertas;
-    </script>
-</body>
-</html>
-"""
-    return HTMLResponse(html_content)
+    with open("dashboard.html", "r", encoding="utf-8") as f:
+        return HTMLResponse(content=f.read())
 
 @app.get("/api/alerts", response_class=JSONResponse)
 def get_alertas():
@@ -249,7 +149,10 @@ def estatisticas_sistema():
         },
         "ong_prematuridade": ONGS_SP[0],
         "sistema_sap": {
-            "alertas_hoje": len([a for a in alertas_historico if a["timestamp"].startswith(date.today().isoformat())]),
+            "alertas_hoje": len([
+                a for a in alertas_historico 
+                if a["timestamp"].startswith(date.today().isoformat())
+            ]),
             "tempo_resposta": "<500ms",
             "uptime": "99.9%",
             "compliance_lgpd": True
