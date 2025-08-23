@@ -1,3 +1,4 @@
+import traceback
 from fastapi import FastAPI, Query, HTTPException
 from fastapi.responses import HTMLResponse, JSONResponse
 from pydantic import BaseModel
@@ -137,21 +138,28 @@ def fetch_alerts_filtered(periodo: Optional[str], urgencia: Optional[str], munic
 
 @app.get("/api/alerts", response_class=JSONResponse)
 async def get_alertas(
-    periodo: Optional[str] = Query(None, description="24h | 7dias | mes | ano"),
-    urgencia: Optional[str] = Query(None, description="EXTREMA | ALTA | MÉDIA | BAIXA"),
-    municipio: Optional[str] = Query(None, description="Nome do município")
+    periodo: Optional[str] = Query(None),
+    urgencia: Optional[str] = Query(None),
+    municipio: Optional[str] = Query(None)
 ):
-    if periodo or urgencia or municipio:
-        alertas = fetch_alerts_filtered(periodo, urgencia, municipio)
-    else:
-        alertas = fetch_alerts_from_db(50)
+    try:
+        if periodo or urgencia or municipio:
+            alertas = fetch_alerts_filtered(periodo, urgencia, municipio)
+        else:
+            alertas = fetch_alerts_from_db(50)
 
-    return {
-        "alertas": alertas,
-        "total": len(alertas),
-        "filtros_aplicados": {"periodo": periodo, "urgencia": urgencia, "municipio": municipio},
-        "timestamp": datetime.now().isoformat()
-    }
+        return {
+            "alertas": alertas,
+            "total": len(alertas),
+            "filtros_aplicados": {"periodo": periodo, "urgencia": urgencia, "municipio": municipio},
+            "timestamp": datetime.now().isoformat()
+        }
+    except Exception as e:
+        # Loga o erro completo no console
+        print("===== ERRO EM /api/alerts =====")
+        traceback.print_exc()
+        # Retorna 500 com mensagem curta
+        raise HTTPException(status_code=500, detail="Erro interno ao consultar alertas")
 
 @app.post("/test/simular-rnds", response_class=JSONResponse)
 async def simular_notificacao_rnds():
