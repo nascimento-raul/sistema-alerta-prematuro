@@ -4,12 +4,18 @@ from pydantic import BaseModel
 from datetime import date, datetime
 from typing import Optional, List
 import random
+from database import init_db, insert_alert, get_alerts, get_alerts_filtered
 
 app = FastAPI(
     title="Sistema de Alerta Prematuro (SAP)",
     description="Conecta famílias de prematuros a ONGs de apoio em 24 horas",
-    version="1.0.2"
+    version="1.0.3"
 )
+
+@app.on_event("startup")
+async def startup_event():
+    await init_db()
+    print("🚀 Sistema SAP iniciado com banco de dados")
 
 class AlertaPrematuro(BaseModel):
     municipio: str
@@ -64,7 +70,7 @@ def home():
     hoje = date.today().isoformat()
     cont = len([a for a in alertas_historico if a["timestamp"].startswith(hoje)])
     return {
-        "sistema":"SAP","status":"online","version":"1.0.2",
+        "sistema":"SAP","status":"online","version":"1.0.3",
         "alertas_processados_hoje":cont,"uptime":"99.9%",
         "endpoints":["/dashboard","/test/simular-rnds","/estatisticas","/docs"]
     }
@@ -74,17 +80,34 @@ def dashboard():
     with open("dashboard.html","r",encoding="utf-8") as f:
         return HTMLResponse(content=f.read())
 
+from fastapi import Query
+
 @app.get("/api/alerts", response_class=JSONResponse)
-def get_alertas():
+async def get_alertas(
+    periodo: Optional[str] = Query(None, description="Filtro por período: 24h, 7dias, mes, ano"),
+    urgencia: Optional[str] = Query(None, description="Filtro por urgência: EXTREMA, ALTA, MÉDIA, BAIXA"),
+    municipio: Optional[str] = Query(None, description="Filtro por município")
+):
+    if periodo or urgencia or municipio:
+        # Usar filtros
+        alertas = await get_alerts_filtered(periodo=periodo, urgencia=urgencia, municipio=municipio, limit=50)
+    else:
+        # Sem filtros - todos os dados
+        alertas = await get_alerts(50)
+    
     return {
-        "alertas":alertas_historico[-50:],
-        "total":len(alertas_historico),
-        "timestamp":datetime.now().isoformat()
+        "alertas": alertas,
+        "total": len(alertas),
+        "filtros_aplicados": {
+            "periodo": periodo,
+            "urgencia": urgencia, 
+            "municipio": municipio
+        },
+        "timestamp": datetime.now().isoformat()
     }
 
 @app.post("/test/simular-rnds", response_class=JSONResponse)
-def simular_notificacao_rnds():
-    # gera valor randômico de semanas e peso
+async def simular_notificacao_rnds():
     semanas = random.randint(24,40)
     peso = random.randint(800,3500)
     municipio = random.choice(["3550308","3304557","3106200","4106902","2927408"])
@@ -100,18 +123,25 @@ def simular_notificacao_rnds():
     )
     nivel,_,_ = calcular_urgencia(semanas)
     alerta = {
-        "municipio":obter_nome_municipio(municipio),
-        "semanas":semanas,
-        "hospital":f"Hospital CNES {notificacao.hospital_identifier}",
-        "data_nascimento":notificacao.birth_date,
-        "timestamp":notificacao.timestamp,
-        "urgency":nivel
+    "municipio":obter_nome_municipio(municipio),
+    "semanas":semanas,
+    "hospital":f"Hospital CNES {notificacao.hospital_identifier}",
+    "data_nascimento":notificacao.birth_date,
+    "timestamp":notificacao.timestamp,
+    "urgency":nivel  # ← AQUI: urgency (Python) vira urgencia (SQL)
     }
+    
+    # Salvar no banco E na memória
+    await insert_alert(alerta)
     alertas_historico.append(alerta)
+    
     return {
-        "status":"processed","notification_id":notificacao.notification_id,
-        "urgency":nivel,"municipality":alerta["municipio"],
-        "processing_time":"<1 segundo","ong_notificada":"ONG Prematuridade.com"
+        "status":"processed",
+        "notification_id":notificacao.notification_id,
+        "urgency":nivel,
+        "municipality":alerta["municipio"],
+        "processing_time":"<1 segundo",
+        "ong_notificada":"ONG Prematuridade.com"
     }
 
 @app.get("/estatisticas", response_class=JSONResponse)
