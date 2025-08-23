@@ -15,7 +15,7 @@ app = FastAPI(
     version="1.0.3"
 )
 
-DB_PATH = "projeto_alerta_prematuridade/alertas.db"  # ajuste se seu banco estiver em outro local
+DB_PATH = "alertas.db" # ajuste se seu banco estiver em outro local
 
 @app.on_event("startup")
 async def startup_event():
