@@ -5,18 +5,18 @@
   <title>SAP Dashboard - Sistema de Alerta Prematuro</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
-    * {margin:0;padding:0;box-sizing:border-box;}
-    body {font-family:Arial,sans-serif;background:#667eea;color:#333;}
-    .container {max-width:1200px;margin:0 auto;padding:20px;}
-    .header {text-align:center;color:white;margin-bottom:20px;}
-    .header h1 {font-size:2.5em;}
-    .status-online {display:inline-block;width:10px;height:10px;border-radius:50%;background:#2ecc71;animation:pulse 2s infinite;margin-right:5px;}
-    @keyframes pulse {0%{opacity:1}50%{opacity:0.5}100%{opacity:1}}
-    .stats-grid {display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;margin-bottom:20px;}
-    .stat-card {background:rgba(255,255,255,0.2);padding:15px;border-radius:8px;text-align:center;color:white;}
-    .stat-number {font-size:2em;font-weight:bold;color:#ffd700;}
-    select {padding:5px;margin:10px;}
-    canvas {background:white;border-radius:8px;display:block;margin:20px auto;}
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body { font-family: Arial, sans-serif; background: #667eea; color: #333; }
+    .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
+    .header { text-align: center; color: white; margin-bottom: 20px; }
+    .header h1 { font-size: 2.5em; }
+    .status-online { display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: #2ecc71; animation: pulse 2s infinite; margin-right: 5px; }
+    @keyframes pulse { 0% { opacity: 1 } 50% { opacity: 0.5 } 100% { opacity: 1 } }
+    .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px,1fr)); gap: 10px; margin-bottom: 20px; }
+    .stat-card { background: rgba(255,255,255,0.2); padding: 15px; border-radius: 8px; text-align: center; color: white; }
+    .stat-number { font-size: 2em; font-weight: bold; color: #ffd700; }
+    select { padding:5px; margin:10px; }
+    canvas { background: white; border-radius: 8px; display: block; margin: 20px auto; }
   </style>
 </head>
 <body>
@@ -33,9 +33,15 @@
       <div class="stat-card"><div class="stat-number" id="total-ano">0</div>Total Ano</div>
       <div class="stat-card"><div class="stat-number" id="total-7dias">0</div>Últimos 7 dias</div>
       <div class="stat-card"><div class="stat-number" id="total-24h">0</div>Últimas 24h</div>
+
+      <!-- Cards por nível de urgência -->
+      <div class="stat-card"><div class="stat-number" id="count-extrema">0</div>Prematuro Extremo</div>
+      <div class="stat-card"><div class="stat-number" id="count-alta">0</div>Prematuro Alta</div>
+      <div class="stat-card"><div class="stat-number" id="count-media">0</div>Prematuro Média</div>
+      <div class="stat-card"><div class="stat-number" id="count-baixa">0</div>Prematuro Baixa</div>
     </div>
 
-    <div style="text-align:center;margin-bottom:20px;">
+    <div style="text-align:center; margin-bottom:20px;">
       <label>Período:
         <select id="periodo" onchange="atualizarDashboard()">
           <option value="geral">Geral</option>
@@ -49,12 +55,12 @@
 
     <canvas id="timelineChart" width="600" height="200"></canvas>
 
-    <div style="margin-top:20px;color:white;text-align:center;">
+    <div style="margin-top:20px; color:white; text-align:center;">
       <h3>🌟 ONG Prematuridade.com</h3>
       <p>Parceiro Estratégico – Maior Rede de Apoio a Prematuros do Brasil</p>
       <p><strong>Famílias/mês:</strong> 600 • <strong>Estados:</strong> 23 • <strong>Anos:</strong> 15 • <strong>Satisfação:</strong> 97%</p>
     </div>
-    <div style="text-align:center;color:white;margin-top:20px;font-size:0.9em;">
+    <div style="text-align:center; color:white; margin-top:20px; font-size:0.9em;">
       Última atualização: <span id="last-update"></span> | SAP v1.0.1
     </div>
   </div>
@@ -75,22 +81,34 @@
       const agora = new Date();
       return dadosAlertas.filter(a => {
         const ts = new Date(a.timestamp);
-        if(p==='24h') return agora - ts <= 24*60*60*1000;
-        if(p==='7dias') return agora - ts <= 7*24*60*60*1000;
-        if(p==='mes') return ts.getMonth() === agora.getMonth() && ts.getFullYear() === agora.getFullYear();
-        if(p==='ano') return ts.getFullYear() === agora.getFullYear();
+        if (p==='24h') return agora - ts <= 24*60*60*1000;
+        if (p==='7dias') return agora - ts <= 7*24*60*60*1000;
+        if (p==='mes') return ts.getMonth()===agora.getMonth() && ts.getFullYear()===agora.getFullYear();
+        if (p==='ano') return ts.getFullYear()===agora.getFullYear();
         return true;
       });
     }
 
-    function atualizarDashboard() {
-      const p = document.getElementById('periodo').value;
-      document.getElementById('total-geral').innerText = dadosAlertas.length;
-      document.getElementById('total-mes').innerText = contarPorPeriodo('mes').length;
-      document.getElementById('total-ano').innerText = contarPorPeriodo('ano').length;
-      document.getElementById('total-7dias').innerText = contarPorPeriodo('7dias').length;
-      document.getElementById('total-24h').innerText = contarPorPeriodo('24h').length;
+    function contarPorUrgencia(alertas, nivel) {
+      return alertas.filter(a => a.urgency === nivel).length;
+    }
 
+    function atualizarDashboard() {
+      // Totais por período
+      document.getElementById('total-geral').innerText = dadosAlertas.length;
+      document.getElementById('total-mes').innerText   = contarPorPeriodo('mes').length;
+      document.getElementById('total-ano').innerText   = contarPorPeriodo('ano').length;
+      document.getElementById('total-7dias').innerText = contarPorPeriodo('7dias').length;
+      document.getElementById('total-24h').innerText   = contarPorPeriodo('24h').length;
+
+      // Totais por urgência
+      document.getElementById('count-extrema').innerText = contarPorUrgencia(dadosAlertas, 'EXTREMA');
+      document.getElementById('count-alta').innerText   = contarPorUrgencia(dadosAlertas, 'ALTA');
+      document.getElementById('count-media').innerText  = contarPorUrgencia(dadosAlertas, 'MÉDIA');
+      document.getElementById('count-baixa').innerText  = contarPorUrgencia(dadosAlertas, 'BAIXA');
+
+      // Atualização do gráfico
+      const p = document.getElementById('periodo').value;
       const filtrados = contarPorPeriodo(p);
       const labels = filtrados.map(a => new Date(a.timestamp).toLocaleTimeString());
       const dataPts = filtrados.map(_ => 1);
@@ -98,7 +116,10 @@
       if (window.timelineChart) window.timelineChart.destroy();
       window.timelineChart = new Chart(ctx, {
         type: 'line',
-        data: { labels, datasets: [{ label: 'Alertas', data: dataPts, fill: false, borderColor: '#ffd700' }] },
+        data: {
+          labels,
+          datasets: [{ label: 'Alertas', data: dataPts, fill: false, borderColor: '#ffd700' }]
+        },
         options: { scales: { x: { display: false } } }
       });
     }
